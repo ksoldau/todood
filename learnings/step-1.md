@@ -11,7 +11,7 @@ A *Dockerfile* is a plain text file that says how to build the container. A *Doc
 (A lot of notes taken from https://www.digitalcitizen.life/what-is-docker-and-why-developers-use-it-instead-of-installing-software-directly/.)
 
 ### What does docker-compose do, and why use it instead of raw Docker commands?
-Docker compose is better than using raw Docker commands because it's more easily reproducible.
+[@ksoldau] Docker compose is better than using raw Docker commands because it's more easily reproducible.
 
 Docker compose is used to define and run multi-container applications. It allows the services, networks, and volumes to be managed in a single YAML configuration file. Works in all environments - production, staging, development, testing, CI. It contains raw docker commands, so it's kind of just short hand for doing the same commands a bunch. 
 
@@ -20,3 +20,4 @@ Docker compose is used to define and run multi-container applications. It allows
 ### What Postgres configuration options matter (password, database name, ports, volumes) and why?
 
 ### How to verify Postgres is actually running and ready to accept connections?
+[@ksoldau] Use the `healhcheck` param and test using the `pg_isready` command. If we didn't verify it was ready we could see errors by trying to connect to Postgres after container ready but Postgres not.
