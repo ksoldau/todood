@@ -18,6 +18,12 @@ Docker compose is used to define and run multi-container applications. It allows
 (Notes taken from https://docs.docker.com/compose/intro/features-uses/.)
 
 ### What Postgres configuration options matter (password, database name, ports, volumes) and why?
+These five seem like about the minimum you need: 
+`POSTGRES_PASSWORD`: for security
+`POSTGRES_USER`: the admin that can connect
+`POSTGRES_DB`: in case we need multiple DBs, we don't just want to use the default one
+`ports`: so we know how to connect to the container through our local machine
+`volumes`: is important because it's needed to persist data outside of a container. This allows data to persist when containers open/close.
 
 ### How to verify Postgres is actually running and ready to accept connections?
 [@ksoldau] Use the `healhcheck` param and test using the `pg_isready` command. If we didn't verify it was ready we could see errors by trying to connect to Postgres after container ready but Postgres not.
