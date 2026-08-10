@@ -1,5 +1,12 @@
 # Decision Log
 
+## 3. Postgres version 17
+**Date:** 2026-08-10
+
+**Decision:** Use Postgres 17 instead of the latest version (18) or an older version.
+
+**Reasoning:** Version 17 is one major version behind current, giving it stability and maturity while not being outdated. EOL is 2029, which is acceptable for a learning project. Pins to a specific version for reproducibility rather than always using `latest`.
+
 ## 2. Postgres for database
 **Date:** 2026-08-10
 
