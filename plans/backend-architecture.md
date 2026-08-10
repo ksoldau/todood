@@ -33,3 +33,6 @@ Connect to the running Postgres using `psql` CLI or a GUI tool. Verify:
 
 ## Output
 Postgres running on `localhost:5432`, `todood` database exists and is accessible.
+
+## Related
+- [Step 1 Learnings](../learnings/step-1.md) — Free-form notes on what was learned
