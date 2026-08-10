@@ -1,5 +1,12 @@
 # Decision Log
 
+## 4. Express for HTTP framework
+**Date:** 2026-08-10
+
+**Decision:** Use Express as the Node.js HTTP framework.
+
+**Reasoning:** Express is the most widely used Node.js framework with the largest community and most tutorials/documentation. Goal is not to learn a new programming language.
+
 ## 3. Postgres version 17
 **Date:** 2026-08-10
 
