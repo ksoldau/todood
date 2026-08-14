@@ -1,5 +1,12 @@
 # Decision Log
 
+## 5. Basic password authentication
+**Date:** 2026-08-10
+
+**Decision:** Implement basic password-based authentication (email + password hash) instead of using off-the-shelf auth services.
+
+**Reasoning:** To learn authentication fundamentals — how password hashing and tokens work. Keeping it educational without spending too much time on it since it doesn't need to be production ready (yet!)
+
 ## 4. Express for HTTP framework
 **Date:** 2026-08-10
 
