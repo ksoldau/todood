@@ -4,7 +4,8 @@
   "description": "Node.js + Express API server, includes database setup and migrations.",
   "main": "src/server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "migrate:local": "psql -U postgres -d todood -h localhost -f"
   },
   "keywords": [],
   "author": "Katie Soldau",
