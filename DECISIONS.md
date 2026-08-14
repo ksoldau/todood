@@ -1,5 +1,12 @@
 # Decision Log
 
+## 6. Raw SQL files for database migrations
+**Date:** 2026-08-10
+
+**Decision:** Use raw SQL files for database migrations instead of a migration tool (db-migrate, Knex.js, Sequelize).
+
+**Reasoning:** Raw SQL files are simple and educational — you see exactly what's running, no abstraction layer. Good for a learning project. If automation is needed later, a tool can be added then.
+
 ## 5. Basic password authentication
 **Date:** 2026-08-10
 

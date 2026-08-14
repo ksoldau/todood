@@ -1,4 +1,4 @@
-# Step 2: Express Backend Setup
+# Step 3: Express Backend Setup
 
 ## Learning Goals
 - Understand how to initialize a Node.js project
