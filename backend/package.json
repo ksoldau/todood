@@ -5,8 +5,9 @@
   "main": "src/server.js",
   "scripts": {
     "docker:up:local": "docker compose --env-file .env.local up",
+    "psql:local": "psql -U postgres -d todood -h localhost",
     "migrate:local": "psql -U postgres -d todood -h localhost -f",
-    "dev": "nodemon src/server.js",
+    "dev": "NODE_ENV=development PORT=3000 POSTGRES_HOST=localhost POSTGRES_PORT=5432 nodemon src/server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -14,7 +15,9 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
-    "express": "^5.2.1"
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "pg": "^8.23.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"
