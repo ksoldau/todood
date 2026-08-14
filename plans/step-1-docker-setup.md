@@ -25,7 +25,15 @@ Create `backend/.env.local` with database connection details (password, host, po
 Add `.env.local` to `.gitignore`.
 
 ### 3. Start the container
-Run `docker-compose up` in `backend/`. Watch the output carefully. The log messages indicate when Postgres is ready to accept connections.
+Run this command in `backend/`:
+
+```bash
+docker compose --env-file .env.local up
+```
+
+(Note: `docker compose` is the modern form; older `docker-compose` also works)
+
+Watch the output carefully. The log messages indicate when Postgres is ready to accept connections.
 
 ### 4. Verify the connection
 Connect to the running Postgres using `psql` CLI or a GUI tool. Verify:

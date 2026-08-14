@@ -9,13 +9,7 @@
 ## Tasks
 
 ### 1. Initialize Node.js project
-Create `backend/package.json` with npm init. This file describes the project, lists dependencies, and defines scripts.
-
-Understand what each field means:
-- `name`, `version`, `description` — project metadata
-- `dependencies` — production packages (Express, database drivers)
-- `devDependencies` — development-only packages (for testing, linting)
-- `scripts` — commands to run (start, dev, test)
+Create `backend/package.json` with npm init.
 
 ### 2. Install Express
 Install Express and related packages: `express`, `dotenv` (for environment variables).
