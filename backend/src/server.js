@@ -1,3 +1,4 @@
+import bcrypt from "bcrypt";
 import dotenv from "dotenv";
 import express from "express";
 import { Client as PGClient } from "pg";
@@ -96,6 +97,31 @@ app.delete("/todos/:id", async (req, res) => {
   }
 
   res.json({ success: true });
+});
+
+app.post("/register", async (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({ error: "Email and password are required." });
+  }
+
+  const passwordHash = await bcrypt.hash(password, 10);
+
+  try {
+    const result = await pgClient.query(
+      "INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id, email, created_at",
+      [email, passwordHash],
+    );
+  } catch (error) {
+    const pgUniqueConstraintViolationCode = "23505";
+    if (error.code === pgUniqueConstraintViolationCode) {
+      return res.status(409).json({ error: "Email is already registered." });
+    }
+    throw error;
+  }
+
+  res.status(201).json(result.rows[0]);
 });
 
 (async () => {
