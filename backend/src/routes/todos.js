@@ -1,14 +1,14 @@
 import express from "express";
 
-import pgClient from "../db.js";
+import { pool } from "../db.js";
 
-// Paths here are relative to where this router is mounted in server.js
+// Paths here are relative to where this router is mounted in index.js
 const router = express.Router();
 
 // Get all of a user's todo items
 router.get("/", async (req, res) => {
   const userId = req.query["user-id"];
-  const result = await pgClient.query(
+  const result = await pool.query(
     "SELECT * FROM todos WHERE user_id = $1",
     [userId],
   );
@@ -24,7 +24,7 @@ router.post("/", async (req, res) => {
     return res.status(400).json({ error: "Title must be defined." });
   }
 
-  const result = await pgClient.query(
+  const result = await pool.query(
     "INSERT INTO todos (user_id, title, notes) VALUES ($1, $2, $3) RETURNING *",
     [user_id, title, notes],
   );
@@ -36,7 +36,7 @@ router.post("/", async (req, res) => {
 router.patch("/:id", async (req, res) => {
   const { id } = req.params;
   const { title, notes, completed_at } = req.body;
-  const result = await pgClient.query(
+  const result = await pool.query(
     `UPDATE todos
     SET title = COALESCE($1, title),
         notes = COALESCE($2, notes),
@@ -56,7 +56,7 @@ router.patch("/:id", async (req, res) => {
 
 router.delete("/:id", async (req, res) => {
   const { id } = req.params;
-  const result = await pgClient.query(
+  const result = await pool.query(
     "DELETE FROM todos WHERE id = $1 RETURNING *",
     [id],
   );

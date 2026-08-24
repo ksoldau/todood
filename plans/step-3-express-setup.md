@@ -17,7 +17,7 @@ Install Express and related packages: `express`, `dotenv` (for environment varia
 Understand what npm install does: downloads packages from npm registry, creates `node_modules/`, updates `package-lock.json`.
 
 ### 3. Create basic server
-Create `backend/src/server.js` with a minimal Express app:
+Create `backend/src/index.js` with a minimal Express app:
 - Import Express
 - Create an app instance
 - Define a health check route (GET /)

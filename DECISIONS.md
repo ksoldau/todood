@@ -1,5 +1,12 @@
 # Decision Log
 
+## 7. Managed Postgres from a third party
+**Date:** 2026-08-21
+
+**Decision:** Use Supabase for hosted Postgres instead of running the database on our own server. Skip the intermediate step of putting the database and the application on the same machine. Use only its Postgres — not its Auth, REST, or Storage services (see #5).
+
+**Reasoning:** Database operations — backups, patching, failover, restores — are a separate skill from backend development, and getting them wrong loses data. Letting a vendor own that removes the highest-consequence failure mode from the learning project; self-managing Postgres is still available later as a deliberate exercise. Supabase is the popular choice at small-project scale, where PlanetScale is aimed at production scale we don't have. Running the DB on the app server was considered and skipped: it's a dead-end configuration that has to be undone before any real deployment, so it isn't worth the detour. The tradeoff is that the app now holds database credentials and connects over the network, which makes secrets handling a real concern rather than a theoretical one: the connection string is stored on the server (env vars now, a secrets manager later), never committed, and the connection is TLS-only.
+
 ## 6. Raw SQL files for database migrations
 **Date:** 2026-08-10
 

@@ -1,20 +1,13 @@
-import { Client as PGClient } from "pg";
+import { Pool } from "pg";
 
-import {
-  POSTGRES_HOST,
-  POSTGRES_PASSWORD,
-  POSTGRES_PORT,
-  POSTGRES_USER,
-} from "./config.js";
+import { DATABASE_URL, NODE_ENV } from "./config.js";
 
-// Node caches modules, so every file that imports this gets the same
-// client — one connection, not one per route file.
-const pgClient = new PGClient({
-  user: POSTGRES_USER,
-  password: POSTGRES_PASSWORD,
-  host: POSTGRES_HOST,
-  port: POSTGRES_PORT,
-  database: "todood",
+// A pool opens connections lazily, one per query, so there's nothing to
+// connect at startup — and nothing left dangling when a connection drops.
+const pool = new Pool({
+  connectionString: DATABASE_URL,
+  // Local Docker Postgres doesn't speak SSL.
+  ssl: NODE_ENV === "development" ? false : { rejectUnauthorized: false },
 });
 
-export default pgClient;
+export { pool };

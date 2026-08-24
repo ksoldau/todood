@@ -1,9 +1,9 @@
 import bcrypt from "bcrypt";
 import express from "express";
 
-import pgClient from "../db.js";
+import { pool } from "../db.js";
 
-// Paths here are relative to where this router is mounted in server.js
+// Paths here are relative to where this router is mounted in index.js
 const router = express.Router();
 
 router.post("/register", async (req, res) => {
@@ -16,7 +16,7 @@ router.post("/register", async (req, res) => {
   const passwordHash = await bcrypt.hash(password, 10);
 
   try {
-    const result = await pgClient.query(
+    const result = await pool.query(
       "INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id, email, created_at",
       [email, passwordHash],
     );
