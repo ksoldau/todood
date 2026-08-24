@@ -7,7 +7,7 @@
     "docker:up:local": "docker compose --env-file .env.local up",
     "psql:local": "psql -U postgres -d todood -h localhost",
     "migrate:local": "psql -U postgres -d todood -h localhost -f",
-    "dev": "NODE_ENV=development PORT=3000 POSTGRES_HOST=localhost POSTGRES_PORT=5432 nodemon src/index.js",
+    "dev": "NODE_ENV=development PORT=3000 nodemon src/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
