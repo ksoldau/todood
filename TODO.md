@@ -12,14 +12,22 @@ DECISIONS.md; this is just the "don't forget" pile.
       all external requests (curl gets a 302), which is why only the browser works.
 
 ## Auth / register
-- [ ] Normalize email before insert (lowercase + trim). Postgres UNIQUE is
-      case-sensitive, so `Me@Test.com` and `me@test.com` register as two accounts.
-- [ ] Enforce a minimum password length. `{"password":"a"}` currently succeeds.
 - [ ] Add a login endpoint. Accounts can be created but not authenticated.
+- [ ] Add email verification, if this ever gets real users. Three things land
+      together: a verification token + `verified_at` column, a `/verify` endpoint, and
+      an email provider with SPF/DKIM set up on a real domain. Only then does
+      `/register` go back to a generic 202 for both new and existing addresses — the
+      email is what carries the difference ("confirm your account" vs "you already
+      have an account, reset your password?"). See DECISIONS.md #9 for why it returns
+      409 today.
 
 ## Error handling
-- [ ] `auth.js` re-throws non-unique-constraint errors, which become a bare 500 with
-      nothing logged. Handle or log them.
+- [ ] `auth.js` re-throws non-unique-constraint errors. They are logged (Express
+      locally, Vercel runtime logs in prod), but the caller gets an opaque 500 with
+      nothing actionable. Deliberately left alone for now: the remaining triggers are
+      real server-side failures — database unreachable, pool exhausted, schema drift
+      (42P01 / 42703), a future NOT NULL column (23502) — where a 500 is the honest
+      answer. Revisit if any of them actually start happening.
 - [ ] `todos.js` has no error handling. A bad `user_id` returns an opaque 500 instead
       of a 400 saying the user does not exist (Postgres code 23503).
 

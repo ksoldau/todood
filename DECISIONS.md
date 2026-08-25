@@ -1,5 +1,14 @@
 # Decision Log
 
+## 9. Return 409 on duplicate registration
+**Date:** 2026-08-25
+
+**Decision:** `/register` returns `409 Conflict` when the email is already taken, rather than returning an identical generic response for both new and existing addresses. Not dealing with email verification yet. 
+
+**Reasoning:** Returning the same response either way is the standard defence against email enumeration. But setting up the ability to send emails to users is not high up on my priority of things to learn atm.
+
+**Tradeoff:** This endpoint leaks which emails have accounts. That is acceptable right now since I will be only user, but would need to be remedied if real users. (At which point I'd probably just be using Supabase's authentication services anyway).
+
 ## 8. Vercel for hosting the API
 **Date:** 2026-08-25
 
