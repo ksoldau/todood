@@ -25,6 +25,10 @@ async function register(req, res) {
     return res.status(400).json({ error: "Password must be at least 8 characters long." });
   }
 
+  if (email.length > 254) {
+    return res.status(400).json({ error: "Email must be less than 255 characters long." });
+  }
+
   const passwordHash = await bcrypt.hash(password, 10);
   const normalizedEmail = email?.toLowerCase();
 
@@ -34,19 +38,20 @@ async function register(req, res) {
       [normalizedEmail, passwordHash],
     );
 
-    respondWithCheckEmail()
+    res.status(201).json({
+      id: result.rows[0].id,
+      email: result.rows[0].email
+    });
   } catch (error) {
     if (error.code === PG_UNIQUE_CONSTRAINT_VIOLATION_CODE) {
       // Don't want to let bad actor know that someone already has this email.
-      respondWithCheckEmail()
-    } else {
-      throw error;
+      res.status(409).json({ message: "Email address already registered." });
+      return
     }
+    throw error;
   }
 }
 
-function respondWithCheckEmail() {
-  res.status(202).json({ message: "Check your email to finish signing up." });
-}
+
 
 export default router;
