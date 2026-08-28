@@ -1,12 +1,12 @@
-import dotenv from "dotenv";
+import dotenv from 'dotenv';
 
 // Load secrets from .env.local before anything reads process.env.
 // This module is imported by db.js and index.js, and ES modules always
 // finish evaluating their dependencies first, so this runs before any
 // other file in the app touches process.env.
-if (process.env.NODE_ENV === "development") {
-  console.log("Loading .env config");
-  dotenv.config({ path: ".env.local" });
+if (process.env.NODE_ENV === 'development') {
+  console.log('Loading .env config');
+  dotenv.config({ path: '.env.local' });
 }
 
 // TODO: Could add some helpful errors if missing any process.envs here

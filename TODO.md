@@ -4,6 +4,7 @@ Running list of things to come back to. Decisions with real reasoning go in
 DECISIONS.md; this is just the "don't forget" pile.
 
 ## Security
+
 - [ ] `GET /todos` takes `user-id` straight from the query string with no
       authentication, so anyone can read anyone's todos by guessing an id — and ids
       are sequential integers, so guessing is trivial. Same for POST/PATCH/DELETE.
@@ -21,6 +22,7 @@ DECISIONS.md; this is just the "don't forget" pile.
       all external requests (curl gets a 302), which is why only the browser works.
 
 ## Auth / register
+
 - [ ] Add a login endpoint. Accounts can be created but not authenticated.
 - [ ] Add email verification, if this ever gets real users. Three things land
       together: a verification token + `verified_at` column, a `/verify` endpoint, and
@@ -31,6 +33,7 @@ DECISIONS.md; this is just the "don't forget" pile.
       409 today.
 
 ## Error handling
+
 - [ ] `auth.js` re-throws non-unique-constraint errors. They are logged (Express
       locally, Vercel runtime logs in prod), but the caller gets an opaque 500 with
       nothing actionable. Deliberately left alone for now: the remaining triggers are
@@ -41,6 +44,7 @@ DECISIONS.md; this is just the "don't forget" pile.
       of a 400 saying the user does not exist (Postgres code 23503).
 
 ## Consistency / cleanup
+
 - [ ] `GET /todos` reads the query param as `user-id` (hyphen) while POST bodies use
       `user_id` (underscore). Pick one — underscore is easier to destructure.
 - [ ] `migrate:local` and `psql:local` in package.json assume `psql` is installed on
@@ -48,6 +52,7 @@ DECISIONS.md; this is just the "don't forget" pile.
       `docker exec`.
 
 ## Testing
+
 - [ ] There are no automated tests — `npm test` is still the stub that exits 1, and
       every check so far has been curl by hand against a running server. That has
       caught real bugs, but only for whatever was remembered to be re-run, and it
@@ -64,10 +69,12 @@ DECISIONS.md; this is just the "don't forget" pile.
       and production.
 
 ## Deployment
+
 - [ ] Connect the Vercel project to the GitHub repo. Right now the app deploys from
       the terminal and migrations deploy from `main`, so production can run code that
       was never committed. (Named as a tradeoff in DECISIONS.md #8.)
 
 ## Later
+
 - [ ] Add a migration tracking table once there are more than a handful of migration
       files. Right now nothing records which have run locally.

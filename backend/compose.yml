@@ -6,11 +6,11 @@ services:
       POSTGRES_USER: ${POSTGRES_USER} # From local env file for secrecy
       POSTGRES_DB: todood
     ports:
-      - "5432:5432" # {your machine port}:{container port}, and Postgres runs on 5432 in Docker container by default
+      - '5432:5432' # {your machine port}:{container port}, and Postgres runs on 5432 in Docker container by default
     volumes:
       - postgres_data:/var/lib/postgresql
     healthcheck: # Verify that Docker ready to accept Postgres connections
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"] # Make sure Postgres is ready
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER}'] # Make sure Postgres is ready
       interval: 10s
       timeout: 5s
       retries: 5
