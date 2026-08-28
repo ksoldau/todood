@@ -1,5 +1,24 @@
 # Decision Log
 
+## 10. Stateless JWTs in the Authorization header, no refresh tokens
+**Date:** 2026-08-27
+
+**Decision:** Authenticate with a single JWT access token, signed with a `JWT_SECRET`, expiring in 24 hours, sent as `Authorization: Bearer <token>`. No refresh tokens, no session table, no cookies.
+
+**Reasoning:**
+
+*JWT over a session id in a table:* a JWT is self-contained, so verifying it is a signature check rather than a database round trip on every request. That costs revocation — once signed, a token is valid until it expires, and there is no way to kill it early. Acceptable for an in flight proj that's probably going to switch to Supabase auth anyway.
+
+*Header over cookie:* React Native doesn't use cookies, so easy decision. 
+
+*No refresh tokens:* A lot of moving parts for a threat the app doesn't have yet. Would want this eventually, though! It costs a table and its cleanup, a `/refresh` endpoint, client retry logic that doesn't fire N refreshes for N parallel 401s, and rotation with reuse-detection to actually catch theft. 
+
+**Tradeoff:** A stolen token is a valid identity until it expires, and nothing can be done about it. `expiresIn` is the only lever, which is why 24h rather than something longer. Also: the id inside the token is never re-checked, so a deleted user's token still verifies — the query just returns nothing.
+
+**Later:** Revisit if a working "sign out of all devices" button is ever wanted, or if ever actually want to protext the todo data. Either one means refresh tokens (or moving to Supabase Auth, per #5 and #9). Not before.
+
+See `learnings/auth-tokens.md` for the underlying concepts.
+
 ## 9. Return 409 on duplicate registration
 **Date:** 2026-08-25
 
