@@ -79,7 +79,7 @@ the response cannot be used to discover which addresses are registered.
 
 A function that runs before protected routes. It reads the `Authorization:
 Bearer <token>` header, verifies the signature, and attaches the user id to
-`req.user`. If the token is missing or invalid, it responds 401 and never calls
+`req.auth.userId`. If the token is missing or invalid, it responds 401 and never calls
 `next()`.
 
 Understand `next()`: it is how one middleware hands control to the next
@@ -90,8 +90,8 @@ handler in the chain. Not calling it stops the request.
 Apply the middleware to every `/todos` route, then remove client-supplied
 identity everywhere:
 
-- `GET /todos` — drop the `user-id` query param, select on `req.user.id`
-- `POST /todos` — drop `user_id` from the body, insert `req.user.id`
+- `GET /todos` — drop the `user-id` query param, select on `req.auth.userId`
+- `POST /todos` — drop `user_id` from the body, insert `req.auth.userId`
 - `PATCH /todos/:id` and `DELETE /todos/:id` — add `AND user_id = $n` to the
   WHERE clause, so a todo belonging to someone else simply matches nothing and
   falls through to the existing 404
