@@ -7,7 +7,7 @@ const router = express.Router();
 
 // Get all of a user's todo items
 router.get('/', async (req, res) => {
-  const userId = req.query['user-id'];
+  const { userId } = req.auth;
   const result = await pool.query('SELECT * FROM todos WHERE user_id = $1', [
     userId,
   ]);
@@ -16,8 +16,8 @@ router.get('/', async (req, res) => {
 
 // Create a todo
 router.post('/', async (req, res) => {
-  // TODO: get user from who's logged in.
-  const { user_id, title, notes } = req.body;
+  const { title, notes } = req.body;
+  const { userId } = req.auth;
 
   if (!title) {
     return res.status(400).json({ error: 'Title must be defined.' });
@@ -25,7 +25,7 @@ router.post('/', async (req, res) => {
 
   const result = await pool.query(
     'INSERT INTO todos (user_id, title, notes) VALUES ($1, $2, $3) RETURNING *',
-    [user_id, title, notes]
+    [userId, title, notes]
   );
 
   // 201 = created
@@ -35,6 +35,8 @@ router.post('/', async (req, res) => {
 router.patch('/:id', async (req, res) => {
   const { id } = req.params;
   const { title, notes, completed_at } = req.body;
+  const { userId } = req.auth;
+
   const result = await pool.query(
     `UPDATE todos
     SET title = COALESCE($1, title),
@@ -42,8 +44,9 @@ router.patch('/:id', async (req, res) => {
         completed_at = COALESCE($3, completed_at),
         updated_at = NOW()
     WHERE id = $4
+    AND user_id = $5
     RETURNING *`,
-    [title, notes, completed_at, id]
+    [title, notes, completed_at, id, userId]
   );
 
   if (result.rows.length === 0) {
@@ -55,9 +58,11 @@ router.patch('/:id', async (req, res) => {
 
 router.delete('/:id', async (req, res) => {
   const { id } = req.params;
+  const { userId } = req.auth;
+
   const result = await pool.query(
-    'DELETE FROM todos WHERE id = $1 RETURNING *',
-    [id]
+    'DELETE FROM todos WHERE id = $1 AND user_id = $2 RETURNING *',
+    [id, userId]
   );
 
   if (result.rows.length === 0) {

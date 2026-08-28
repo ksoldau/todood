@@ -2,6 +2,7 @@ import express from 'express';
 
 import { NODE_ENV, SERVER_PORT } from './config.js';
 import { pool } from './db.js';
+import { requireAuth } from './middleware/requireAuth.js';
 import authRouter from './routes/auth.js';
 import todosRouter from './routes/todos.js';
 
@@ -16,7 +17,7 @@ app.get('/', (req, res) => {
 // ROUTERS
 // The prefix lives here, so the route files only
 // know their own paths ("/", "/:id").
-app.use('/todos', todosRouter);
+app.use('/todos', requireAuth, todosRouter);
 app.use('/', authRouter);
 
 // Health check

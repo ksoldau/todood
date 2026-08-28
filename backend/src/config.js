@@ -19,3 +19,4 @@ export const SERVER_PORT = process.env.PORT;
 export const POSTGRES_USER = process.env.POSTGRES_USER;
 export const POSTGRES_PASSWORD = process.env.POSTGRES_PASSWORD;
 export const DATABASE_URL = process.env.DATABASE_URL;
+export const JWT_SECRET = process.env.JWT_SECRET;

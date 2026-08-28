@@ -1,14 +1,17 @@
 import bcrypt from 'bcrypt';
 import express from 'express';
+import jwt from 'jsonwebtoken';
 
 import { pool } from '../db.js';
 import { isValidEmail } from '../utils/validation.js';
+import { JWT_SECRET } from '../config.js';
 
 const PG_UNIQUE_CONSTRAINT_VIOLATION_CODE = '23505';
 
 // Paths here are relative to where this router is mounted in index.js
 const router = express.Router();
 router.post('/register', register);
+router.post('/login', login);
 
 async function register(req, res) {
   const { email, password } = req.body;
@@ -54,6 +57,36 @@ async function register(req, res) {
     }
     throw error;
   }
+}
+
+async function login(req, res) {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email and password are required.' });
+  }
+
+  const normalizedEmail = email?.toLowerCase();
+  const result = await pool.query(
+    'SELECT id, email, password_hash FROM users WHERE email = $1',
+    [normalizedEmail]
+  );
+
+  if (result.rows.length === 0) {
+    return res.status(401).json({ error: 'Invalid email or password.' });
+  }
+
+  const user = result.rows[0];
+  const isPasswordValid = await bcrypt.compare(password, user.password_hash);
+
+  if (!isPasswordValid) {
+    return res.status(401).json({ error: 'Invalid email or password.' });
+  }
+
+  const JWT = jwt.sign({ sub: user.id }, JWT_SECRET, { expiresIn: '1h' });
+  res.json({
+    token: JWT,
+  });
 }
 
 export default router;
