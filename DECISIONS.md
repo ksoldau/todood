@@ -1,4 +1,15 @@
 # Decision Log
+## 11. Expo rather than bare React Native CLI
+
+**Date:** 2026-08-31
+
+**Decision:** Build the frontend with Expo.
+
+**Reasoning:** Bare RN CLI does not target web at all — Metro is native-only and there is no HTML entry point. And every native dependency added afterwards needs a web implementation or a hand-written shim, because a native module is Swift or Kotlin behind a JS interface and does not exist in a browser.
+
+The React Native docs point at a framework first rather than the bare CLI, and Expo is the default one.
+
+**Tradeoff:** Another layer between the app and the platform that I won't implement on my own. But it's acceptable because my goal isn't to learn about native build tooling.
 
 ## 10. Stateless JWTs in the Authorization header, no refresh tokens
 
