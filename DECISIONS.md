@@ -8,15 +8,19 @@
 
 **Reasoning:**
 
-_JWT over a session id in a table:_ a JWT is self-contained, so verifying it is a signature check rather than a database round trip on every request. That costs revocation — once signed, a token is valid until it expires, and there is no way to kill it early. Acceptable for an in flight proj that's probably going to switch to Supabase auth anyway.
+_JWT over a session id in a table:_ a JWT is self-contained, so verifying it is a signature check rather than a database round trip on every request. That costs per-token revocation — once signed, a token is valid until it expires, and there is no way to kill an individual one early. Acceptable for an in flight proj that's probably going to switch to Supabase auth anyway.
 
 _Header over cookie:_ React Native doesn't use cookies, so easy decision.
 
 _No refresh tokens:_ A lot of moving parts for a threat the app doesn't have yet. Would want this eventually, though! It costs a table and its cleanup, a `/refresh` endpoint, client retry logic that doesn't fire N refreshes for N parallel 401s, and rotation with reuse-detection to actually catch theft.
 
-**Tradeoff:** A stolen token is a valid identity until it expires, and nothing can be done about it. `expiresIn` is the only lever, which is why 24h rather than something longer. Also: the id inside the token is never re-checked, so a deleted user's token still verifies — the query just returns nothing.
+**Tradeoff:** A stolen token is a valid identity until it expires, and there is no targeted way to cancel it. `expiresIn` is the only fine-grained lever, which is why 24h rather than something longer.
 
-**Later:** Revisit if a working "sign out of all devices" button is ever wanted, or if ever actually want to protext the todo data. Either one means refresh tokens (or moving to Supabase Auth, per #5 and #9). Not before.
+There is, however, one blunt lever: **rotating `JWT_SECRET` invalidates every token ever signed with the old value**, immediately. Verification is just a signature check against the current secret, so changing it makes every outstanding token fail with `invalid signature`. That is a global logout, not a targeted one — it cannot revoke a single stolen token without kicking out everyone at once. With one user that distinction costs nothing, which makes it a perfectly good panic button today. As of 2026-08-31 the secret is set in Vercel (production and preview) rather than only `.env.local`, so rotating it in prod is a `vercel env` change plus a redeploy — note the redeploy, since env changes only reach new deployments.
+
+Also: the id inside the token is never re-checked, so a deleted user's token still verifies — the query just returns nothing.
+
+**Later:** Revisit if a *per-user* "sign out of all devices" button is ever wanted, or if ever actually want to protext the todo data. Either one means refresh tokens (or moving to Supabase Auth, per #5 and #9). Not before — an all-users-at-once logout already exists via secret rotation above, and that covers the realistic panic case while this is a single-user app. The tripwire is a second real user: from that point on, rotation stops being free, because cutting off one compromised session also cuts off everyone else's.
 
 See `learnings/auth-tokens.md` for the underlying concepts.
 

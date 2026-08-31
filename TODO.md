@@ -5,15 +5,25 @@ DECISIONS.md; this is just the "don't forget" pile.
 
 ## Security
 
-- [ ] `GET /todos` takes `user-id` straight from the query string with no
-      authentication, so anyone can read anyone's todos by guessing an id — and ids
-      are sequential integers, so guessing is trivial. Same for POST/PATCH/DELETE.
-      The fix is not to hide the id: the server should know who the caller is from a
-      session or token, and `user_id` should come from that, never from the request.
-      Blocked on the login endpoint.
-- [ ] Decide sequential integer ids vs UUIDs. SERIAL leaks the user count (id 47
-      means roughly 47 users) and makes enumeration easy. Worth settling before
-      there is data to migrate.
+- [ ] `/login` leaks which emails have accounts via response timing. An unknown
+      email returns immediately; a known email with a wrong password runs
+      `bcrypt.compare` first. Measured locally: ~0.002ms vs ~59ms — visible in a
+      single `curl -w %{time_total}`, no statistics needed. Both paths return an
+      identical generic 401, so it is only the clock that talks. Fix is to compare
+      against a dummy hash on the not-found path, and it must be a real bcrypt call
+      — a `setTimeout` just moves the tell.
+      Deliberately not fixed yet: `/register` already returns 409 on a duplicate
+      (DECISIONS.md #9), which answers the same question in one request, so closing
+      this buys nothing today. **Revisit the moment `/register` stops returning 409**
+      — i.e. when email verification lands and it goes to a generic 202. Shipping
+      that without this puts the leak straight back.
+- [ ] Decide sequential integer ids vs UUIDs — **half done.** `users.id` is now
+      UUID (migration `20260826133400_alter_to_uuids.sql`), which was the half that
+      mattered: user ids are no longer guessable or countable. `todos.id` is still
+      SERIAL. Lower stakes now that every todo route filters on the caller's
+      `user_id` and a miss falls through to 404, so guessing an id reveals nothing
+      — but a user can still infer roughly how many todos exist system-wide from
+      the ids they get back. Leave it unless that matters.
 - [ ] Set `ssl.rejectUnauthorized: true` in `backend/src/db.js` and supply Supabase's
       root CA cert via a `SUPABASE_CA_CERT` env var. Currently `false`, which encrypts
       but does not verify who is on the other end. Test on a preview deploy first —
@@ -23,7 +33,6 @@ DECISIONS.md; this is just the "don't forget" pile.
 
 ## Auth / register
 
-- [ ] Add a login endpoint. Accounts can be created but not authenticated.
 - [ ] Add email verification, if this ever gets real users. Three things land
       together: a verification token + `verified_at` column, a `/verify` endpoint, and
       an email provider with SPF/DKIM set up on a real domain. Only then does
@@ -62,6 +71,14 @@ DECISIONS.md; this is just the "don't forget" pile.
       8 characters (400), malformed email (400), email over 254 characters (400).
       Those five caught a `res` closure bug, a regex quantifier typo, and a
       double-send — worth locking in so they stay caught.
+- [ ] Add the auth-flow cases verified by curl on 2026-08-31, all passing: no token
+      (401), valid token (200, only that user's todos), expired token (401), and B
+      attempting GET / PATCH / DELETE on A's todo (empty list / 404 / 404). The
+      cross-user three are the ones worth automating — they are what prove the
+      `AND user_id = $n` clauses bite, and they are invisible with only one user in
+      the database. Expired-token needs a token signed with `expiresIn: '-1s'`,
+      since it is otherwise the one branch of `requireAuth`'s try/catch that
+      nothing reaches for 24 hours.
 - [ ] Decide how tests get a database. Options: point at the local Docker Postgres
       and truncate between runs, or spin up a throwaway container per run. The
       migrations in `backend/supabase/migrations` define the schema either way.
