@@ -1,4 +1,29 @@
 # Decision Log
+
+## 12. SecureStore on native, AsyncStorage on web for the token
+
+**Date:** 2026-08-31
+
+**Decision:** Store the login JWT with `expo-secure-store` on iOS and Android, and with `AsyncStorage` on web, behind a single storage wrapper (`saveToken` / `getToken` / `clearToken`) that branches on `Platform.OS`. Nothing else in the app knows which backend is in use.
+
+**Reasoning:**
+
+_What is stored:_ one string, the JWT from `/login` — 188 bytes at the current payload of `sub`, `iat`, `exp`. At 188 bytes this clears every storage limit by orders of magnitude.
+
+_Why it must persist at all:_ REQUIREMENTS says users stay logged in, so it has to survive an app restart. That rules out React state.
+
+_Why the split:_ there is no encrypted-at-rest option on web. That is a browser limitation, not an Expo gap — anything the app's JS can read, injected JS can read too, so `localStorage`, `sessionStorage` and IndexedDB are equally exposed. `expo-secure-store` lists Android, iOS and tvOS only, and Expo's auth guide states there is no web equivalent.
+
+_Why the branch is cheap:_ `AsyncStorage`'s web implementation is backed by `localStorage` with the same API, so the platform split is one line inside the wrapper.
+
+**Rejected:** `AsyncStorage` everywhere. One code path and no branching, but it gives up Keychain and Keystore on the two platforms that have them, in exchange for a branch that turned out to be trivial. The single-path argument would win if the wrapper ever grew complicated.
+
+**Tradeoff:** Web tokens sit unencrypted where any XSS can read them, and no amount of client-side care fixes that. The only real web defence is an `httpOnly` cookie, which conflicts with the header-based design in #10 and does not fit React Native. Accepted: the mitigation for a stolen token remains the 24h expiry, not the storage.
+
+Also worth being clear what encryption at rest buys even on native — it protects the token from another process on the device, or from someone with the unlocked phone or a backup. It does nothing about a token already stolen in transit.
+
+**Later:** Revisit if web ever handles data worth stealing, at which point the honest fix is moving web to `httpOnly` cookies and accepting two auth mechanisms — or moving to Supabase Auth (#5, #9), which changes the question anyway: it stores a whole session object rather than one token, and refreshes it hourly.
+
 ## 11. Expo rather than bare React Native CLI
 
 **Date:** 2026-08-31
@@ -31,7 +56,7 @@ There is, however, one blunt lever: **rotating `JWT_SECRET` invalidates every to
 
 Also: the id inside the token is never re-checked, so a deleted user's token still verifies — the query just returns nothing.
 
-**Later:** Revisit if a *per-user* "sign out of all devices" button is ever wanted, or if ever actually want to protext the todo data. Either one means refresh tokens (or moving to Supabase Auth, per #5 and #9). Not before — an all-users-at-once logout already exists via secret rotation above, and that covers the realistic panic case while this is a single-user app. The tripwire is a second real user: from that point on, rotation stops being free, because cutting off one compromised session also cuts off everyone else's.
+**Later:** Revisit if a _per-user_ "sign out of all devices" button is ever wanted, or if ever actually want to protext the todo data. Either one means refresh tokens (or moving to Supabase Auth, per #5 and #9). Not before — an all-users-at-once logout already exists via secret rotation above, and that covers the realistic panic case while this is a single-user app. The tripwire is a second real user: from that point on, rotation stops being free, because cutting off one compromised session also cuts off everyone else's.
 
 See `learnings/auth-tokens.md` for the underlying concepts.
 
