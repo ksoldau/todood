@@ -1,13 +1,23 @@
 import express from 'express';
+import cors from 'cors';
 
 import { NODE_ENV, SERVER_PORT } from './config.js';
-import { pool } from './db.js';
 import { requireAuth } from './middleware/requireAuth.js';
 import authRouter from './routes/auth.js';
 import todosRouter from './routes/todos.js';
 
+const EXPO_WEB_DEV_SERVER = 'http://localhost:8081';
+
 const app = express();
 app.use(express.json());
+app.use(
+  cors({
+    origin: EXPO_WEB_DEV_SERVER, // TODO: Replace with real URL in production.,
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    methods: ['GET', 'POST', 'PATCH', 'DELETE'],
+    // maxAge TODO: set a max age so isn't the browsers really quick default.
+  })
+);
 
 // Health check
 app.get('/', (req, res) => {
