@@ -91,6 +91,10 @@ DECISIONS.md; this is just the "don't forget" pile.
       the terminal and migrations deploy from `main`, so production can run code that
       was never committed. (Named as a tradeoff in DECISIONS.md #8.)
 
+## Tooling
+
+- [ ] Migrate to TypeScript. Catch simple bugs.
+
 ## Later
 
 - [ ] Add a migration tracking table once there are more than a handful of migration
