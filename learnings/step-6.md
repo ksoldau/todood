@@ -18,7 +18,7 @@ guess — the gap between the two is the useful part.
 
 #### Why does sending an `Authorization` header cause an extra `OPTIONS` request?
 
-[@ksoldau] It's the browser asking permission before doing anything (preflight). Happens underneath `fetch`, which makes it kinda hard to debug!
+[@ksoldau] It's the browser asking permission before doing anything (preflight). Happens underneath `fetch`, which makes it kinda hard to debug! (A lot of other headers or DELETE, etc can also trigger options request though.)
 
 The same origin policy (talked about above) only really applies to the reading of the response because the request still gets sent. The extra OPTIONS request can stop the request form being sent at all. If the browser thinks the req will cause a side effect just by sending a request, it'll make sure it's allowed to send from the origin first. It "thinks there will be a side effect" if you're doing anything other than what an original HTML form could do.
 
@@ -31,3 +31,5 @@ Caching: Browsers cache Allow-Headers (and others) which includes the Authorizat
 [@ksoldau] We don't want to allow ANYONE to read a response from our APIs, only our app or website.
 
 Realistically, since we're using an Authz header and not auth cookies, the "*" is less dangerous because there's no cookies that'll automatically get attached. But /login and /register still would've been exposed.
+
+Also, `*` plus credentials is forbidden. Credentials are the stuff the browser attaches automatically like cookies, HTTP auth, TLS client certs.
