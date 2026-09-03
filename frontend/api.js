@@ -21,13 +21,21 @@ export async function apiFetch(path, options = {}) {
     body,
   });
 
-  const data = await result.json();
+  const contentType = result.headers.get('content-type') || '';
+  const isJson = contentType.includes('application/json');
 
   if (!result.ok) {
-    const err = new Error(data.error || 'Request failed');
+    const message = isJson
+      ? (await result.json()).error || 'Request failed'
+      : `Server error (${result.status})`;
+    const err = new Error(message);
     err.status = result.status;
     throw err;
   }
 
-  return data;
+  if (!isJson) {
+    throw new Error('Expected JSON response but got a non-JSON response');
+  }
+
+  return result.json();
 }
