@@ -52,7 +52,7 @@ async function register(req, res) {
   } catch (error) {
     if (error.code === PG_UNIQUE_CONSTRAINT_VIOLATION_CODE) {
       // Don't want to let bad actor know that someone already has this email.
-      res.status(409).json({ message: 'Email address already registered.' });
+      res.status(409).json({ error: 'Email address already registered.' });
       return;
     }
     throw error;
