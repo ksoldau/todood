@@ -1,19 +1,31 @@
-import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View } from 'react-native';
-import { API_BASE_URL } from './config';
 import { useEffect, useState } from 'react';
+import { setOnDeadSession } from './api.js';
+import { getToken } from './auth.js';
 
 export default function App() {
-  const [res, setRes] = useState(null);
+  const [state, setState] = useState('loading'); // in | out | loading
+
   useEffect(() => {
-    fetch(`${API_BASE_URL}/healthz`)
-      .then((response) => response.json())
-      .then((data) => setRes(data));
+    async function readToken() {
+      const token = await getToken();
+      if (token) {
+        setState('in');
+      } else {
+        setState('out');
+      }
+    }
+
+    readToken();
+
+    setOnDeadSession(() => setState('out'));
   }, []);
 
   return (
     <View style={styles.container}>
-      <Text>{JSON.stringify(res)}</Text>
+      {state === 'loading' ? <Text>Loading...</Text> : null}
+      {state === 'in' ? <Text>logged in app</Text> : null}
+      {state === 'out' ? <Text>login screen</Text> : null}
     </View>
   );
 }

@@ -1,5 +1,11 @@
 import { API_BASE_URL } from './config.js';
-import { getToken } from './auth.js';
+import { getToken, removeToken } from './auth.js';
+
+// Set when app starts.
+let onDeadSession;
+export function setOnDeadSession(handler) {
+  onDeadSession = handler;
+}
 
 export async function apiFetch(path, options = {}) {
   const fullUrl = `${API_BASE_URL}${path}`;
@@ -25,6 +31,16 @@ export async function apiFetch(path, options = {}) {
   const isJson = contentType.includes('application/json');
 
   if (!result.ok) {
+    if (result.status === 401 && token != null) {
+      if (onDeadSession) {
+        await removeToken();
+        onDeadSession();
+      } else {
+        const err = new Error(`Missing an onDeadSession handler.`);
+        err.status = result.status;
+        throw err;
+      }
+    }
     const message = isJson
       ? (await result.json()).error || 'Request failed'
       : `Server error (${result.status})`;
