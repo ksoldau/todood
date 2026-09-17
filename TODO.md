@@ -59,6 +59,16 @@ DECISIONS.md; this is just the "don't forget" pile.
 - [ ] `migrate:local` and `psql:local` in package.json assume `psql` is installed on
       the host. It is not, so they fail. Either install it or rewrite them to use
       `docker exec`.
+- [ ] Two local Postgres instances are running the same schema and can drift: the
+      Docker Postgres from `compose.yml` (`5432/todood`, what the backend's
+      `DATABASE_URL` points at) and the Supabase stack (`54322/postgres`, what
+      `supabase migration up` targets). Already bit us once — a migration applied to
+      Supabase was missing from the DB the backend actually uses. The backend uses no
+      Supabase features (auth is hand-rolled bcrypt+JWT), so Docker Postgres is the
+      lower-friction keeper; consolidate onto one and delete the other. If keeping
+      Docker, move migrations out of `supabase/` to a plain folder + runner and drop
+      the Supabase stack. If keeping Supabase, repoint `DATABASE_URL` to `54322` and
+      delete `compose.yml`.
 
 ## Testing
 
