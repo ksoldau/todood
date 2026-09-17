@@ -5,27 +5,48 @@ import { pool } from '../db.js';
 // Paths here are relative to where this router is mounted in index.js
 const router = express.Router();
 
-// Get all of a user's todo items
+const BUCKETS = ['today', 'soon', 'later'];
+
+// Get all of a user's todo items, ordered within each bucket.
 router.get('/', async (req, res) => {
   const { userId } = req.auth;
-  const result = await pool.query('SELECT * FROM todos WHERE user_id = $1', [
-    userId,
-  ]);
+  const result = await pool.query(
+    `SELECT * FROM todos
+     WHERE user_id = $1
+     ORDER BY
+       ARRAY_POSITION(ARRAY['today', 'soon', 'later']::text[], bucket),
+       position`,
+    [userId]
+  );
   res.json(result.rows);
 });
 
-// Create a todo
+// Create a todo. Caller must state the bucket; the item goes to the end of it.
 router.post('/', async (req, res) => {
-  const { title, notes } = req.body;
+  const { title, notes, bucket } = req.body;
   const { userId } = req.auth;
 
   if (!title) {
     return res.status(400).json({ error: 'Title must be defined.' });
   }
 
+  if (!BUCKETS.includes(bucket)) {
+    return res
+      .status(400)
+      .json({ error: 'Bucket must be today, soon, or later.' });
+  }
+
   const result = await pool.query(
-    'INSERT INTO todos (user_id, title, notes) VALUES ($1, $2, $3) RETURNING *',
-    [userId, title, notes]
+    `INSERT INTO todos (user_id, title, notes, bucket, position)
+     VALUES (
+       $1, $2, $3, $4,
+       COALESCE(
+         (SELECT MAX(position) + 1 FROM todos WHERE user_id = $1 AND bucket = $4),
+         0
+       )
+     )
+     RETURNING *`,
+    [userId, title, notes, bucket]
   );
 
   // 201 = created
@@ -34,19 +55,25 @@ router.post('/', async (req, res) => {
 
 router.patch('/:id', async (req, res) => {
   const { id } = req.params;
-  const { title, notes, completed_at } = req.body;
+  const { title, notes, completed_at, bucket, position } = req.body;
   const { userId } = req.auth;
+
+  if (bucket !== undefined && !BUCKETS.includes(bucket)) {
+    return res.status(400).json({ error: 'Invalid bucket.' });
+  }
 
   const result = await pool.query(
     `UPDATE todos
     SET title = COALESCE($1, title),
         notes = COALESCE($2, notes),
         completed_at = COALESCE($3, completed_at),
+        bucket = COALESCE($4, bucket),
+        position = COALESCE($5, position),
         updated_at = NOW()
-    WHERE id = $4
-    AND user_id = $5
+    WHERE id = $6
+    AND user_id = $7
     RETURNING *`,
-    [title, notes, completed_at, id, userId]
+    [title, notes, completed_at, bucket, position, id, userId]
   );
 
   if (result.rows.length === 0) {
