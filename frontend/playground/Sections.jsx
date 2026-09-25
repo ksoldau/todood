@@ -173,7 +173,11 @@ export function Sections() {
         renderItem={renderItem}
         onDragEnd={handleDragEnd}
         containerStyle={styles.container}
+        contentContainerStyle={styles.listContent}
       />
+      <Pressable style={styles.addButton} onPress={() => console.log('add')}>
+        <Text style={styles.addButtonText}>+</Text>
+      </Pressable>
     </View>
   );
 }
@@ -211,5 +215,25 @@ const styles = StyleSheet.create({
   },
   itemText: {
     fontSize: 16,
+  },
+  listContent: {
+    // Room to scroll the last todo clear of the floating add button.
+    paddingBottom: 100,
+  },
+  addButton: {
+    position: 'absolute',
+    right: 24,
+    bottom: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#1a73e8',
+  },
+  addButtonText: {
+    color: '#fff',
+    fontSize: 32,
+    lineHeight: 34,
   },
 });
