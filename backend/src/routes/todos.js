@@ -24,7 +24,7 @@ router.get('/', async (req, res) => {
 
 // Create a todo. Caller must state the bucket; the item goes to the end of it.
 router.post('/', async (req, res) => {
-  const { title, notes, bucket } = req.body;
+  const { title, notes, bucket, position } = req.body;
   const { userId } = req.auth;
 
   if (!title) {
@@ -37,17 +37,22 @@ router.post('/', async (req, res) => {
       .json({ error: 'Bucket must be today, soon, or later.' });
   }
 
+  if (position !== undefined && !Number.isFinite(position)) {
+    return res.status(400).json({ error: 'Position must be a number.' });
+  }
+
   const result = await pool.query(
     `INSERT INTO todos (user_id, title, notes, bucket, position)
      VALUES (
        $1, $2, $3, $4,
        COALESCE(
+          $5,
          (SELECT MAX(position) + 1 FROM todos WHERE user_id = $1 AND bucket = $4),
          0
        )
      )
      RETURNING *`,
-    [userId, title, notes, bucket]
+    [userId, title, notes, bucket, position]
   );
 
   // 201 = created
