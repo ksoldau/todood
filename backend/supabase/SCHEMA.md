@@ -13,8 +13,8 @@ CREATE TABLE users (
   id SERIAL PRIMARY KEY,
   email VARCHAR(255) NOT NULL UNIQUE,
   password_hash TEXT NOT NULL,
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 ```
 
@@ -25,8 +25,8 @@ CREATE TABLE users (
 | `id`            | SERIAL       | Yes       | Primary key. Unique identifier for each user.               |
 | `email`         | VARCHAR(255) | Yes       | Email address. Must be unique (only one account per email). |
 | `password_hash` | TEXT         | Yes       | Hashed password (never store plain text).                   |
-| `created_at`    | TIMESTAMP    | Yes       | When the account was created. Auto-set to now.              |
-| `updated_at`    | TIMESTAMP    | Yes       | When the account was last modified. Auto-set to now.        |
+| `created_at`    | TIMESTAMPTZ  | Yes       | When the account was created. Auto-set to now.              |
+| `updated_at`    | TIMESTAMPTZ  | Yes       | When the account was last modified. Auto-set to now.        |
 
 ## Todos Table
 
@@ -38,11 +38,11 @@ CREATE TABLE todos (
   user_id UUID NOT NULL REFERENCES users(id),
   title VARCHAR(255) NOT NULL,
   notes TEXT,
-  completed_at TIMESTAMP,
+  completed_at TIMESTAMPTZ,
   bucket TEXT NOT NULL CHECK (bucket IN ('today', 'soon', 'later')),
   position DOUBLE PRECISION NOT NULL DEFAULT 0,
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 ```
 
@@ -54,11 +54,11 @@ CREATE TABLE todos (
 | `user_id`      | UUID             | Yes       | Foreign key to `users.id`. Links this todo to its owner.              |
 | `title`        | VARCHAR(255)     | Yes       | Todo description.                                                     |
 | `notes`        | TEXT             | No        | Additional details about the todo.                                   |
-| `completed_at` | TIMESTAMP        | No        | When the todo was completed. NULL if not completed yet.              |
+| `completed_at` | TIMESTAMPTZ      | No        | When the todo was completed. NULL if not completed yet.              |
 | `bucket`       | TEXT             | Yes       | Which time-horizon bucket: `today`, `soon`, or `later`. No default — every insert must state it. |
 | `position`     | DOUBLE PRECISION | Yes       | Sort order within a (user, bucket) group. Fractional for cheap reorders. |
-| `created_at`   | TIMESTAMP        | Yes       | When the todo was created. Auto-set to now.                          |
-| `updated_at`   | TIMESTAMP        | Yes       | When the todo was last modified. Auto-set to now.                    |
+| `created_at`   | TIMESTAMPTZ      | Yes       | When the todo was created. Auto-set to now.                          |
+| `updated_at`   | TIMESTAMPTZ      | Yes       | When the todo was last modified. Auto-set to now.                    |
 
 ## Relationships
 

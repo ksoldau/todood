@@ -100,6 +100,13 @@ DECISIONS.md; this is just the "don't forget" pile.
 - [ ] Connect the Vercel project to the GitHub repo. Right now the app deploys from
       the terminal and migrations deploy from `main`, so production can run code that
       was never committed. (Named as a tradeoff in DECISIONS.md #8.)
+- [ ] Run migration `20260929220000_timestamps_to_timestamptz.sql` on prod (Supabase).
+      Applied to local Docker Postgres already. Its `USING ... AT TIME ZONE 'UTC'`
+      assumes existing rows are UTC — true for prod, where CURRENT_TIMESTAMP defaults
+      ran under a UTC session. Before this, the API shifted every timestamp by the
+      server's local offset (`timestamp without time zone` read back through the node
+      process's zone). Only surfaced because completing todos was the first feature to
+      touch a timestamp value rather than just null-vs-set.
 
 ## Tooling
 
