@@ -4,9 +4,11 @@
   "description": "Node.js + Express API server, includes database setup and migrations.",
   "main": "src/index.js",
   "scripts": {
-    "docker:up:local": "docker compose --env-file .env.local up",
-    "psql:local": "psql -U postgres -d todood -h localhost",
-    "migrate:local": "psql -U postgres -d todood -h localhost -f",
+    "db:start": "supabase start",
+    "db:stop": "supabase stop",
+    "db:reset": "supabase db reset",
+    "db:migrate": "supabase migration up",
+    "psql": "docker exec -it supabase_db_backend psql -U postgres -d postgres",
     "dev": "NODE_ENV=development PORT=3000 nodemon src/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

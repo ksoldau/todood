@@ -1,5 +1,19 @@
 # Decision Log
 
+## 14. One local database: Supabase, not Docker
+
+**Date:** 2026-09-29
+
+**Decision:** Run a single local Postgres — the Supabase local stack (`54322/postgres`) — and drop the standalone Docker Postgres (`compose.yml`, `5432/todood`). `DATABASE_URL` points at `54322`, the db scripts in `backend/package.json` now call the `supabase` CLI (`db reset`, `migration up`, `start`/`stop`), and `seed.sql` was rewritten to match the current schema (UUID ids, `bucket`/`position`, a bcrypt hash).
+
+**Reasoning:** There were two local databases running the same migrations from different tools. The `supabase` CLI (`migration up`, `db push`) only touches its own stack and prod; the Docker DB the backend actually queried was updated by hand, via a `migrate:local` script that didn't even run (no `psql` on the host). A migration applied through the CLI landed in Supabase and prod but not Docker, so the API broke against a schema that "existed" everywhere I looked. One database, one path in, removes the whole failure mode.
+
+**Rejected:** Keeping Docker and dropping Supabase local. It was the lower-friction option _while_ auth was hand-rolled bcrypt+JWT (the backend used no Supabase features locally, so plain Postgres was enough). That stopped being true: Supabase Auth is planned (see below), and testing against it needs the Supabase stack — GoTrue, the `auth` schema, `auth.uid()` in RLS — which plain Docker Postgres can't provide. Keeping Docker would have meant running the Supabase stack anyway for auth, i.e. two databases again. So the tie broke toward Supabase.
+
+**Tripwire / dependency:** This bets on the Supabase Auth migration actually happening. If that plan is abandoned and auth stays hand-rolled indefinitely, Docker would have been the simpler keeper and this is worth revisiting. The reversal itself is the signal: decision #5 chose hand-rolled auth partly to avoid coupling to Supabase, and this leans back toward Supabase in anticipation of #5 being revisited.
+
+**Note:** `POSTGRES_USER`/`POSTGRES_PASSWORD` in `backend/.env.local` are now unused (they fed `compose.yml`); left in place, harmless, remove when convenient.
+
 ## 12. SecureStore on native, AsyncStorage on web for the token
 
 **Date:** 2026-08-31
