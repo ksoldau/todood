@@ -1,5 +1,5 @@
-import { apiFetch } from '../api.js';
-import { saveToken } from '../auth.js';
+import { apiFetch } from './lib/api.js';
+import { saveToken } from './lib/auth.js';
 
 // TEMPORARY dev-only login. There's no login screen yet, so App bootstraps a
 // session as a fixed dev user. Remove this file once real auth lands.

@@ -54,12 +54,10 @@ DECISIONS.md; this is just the "don't forget" pile.
 
 ## Consistency / cleanup
 
-- [ ] Rename `frontend/playground/`. Despite the name, it holds the actual app —
-      `App.js` imports `Sections.jsx` (the only screen) plus `MagicPlus`, `TodoEditor`,
-      `todoRows` from it. Only `devAuth.js` is genuinely throwaway. The name reads as
-      "scratch code, safe to delete," which is the opposite of true. Rename to
-      `screens/` (or `components/`), move `devAuth.js` out, update the two imports in
-      `App.js`. Own commit, since it touches every import.
+- [x] Rename `frontend/playground/` — it held the actual app, not scratch code.
+      Reorganized into `frontend/src/lib/` (api, auth, storage, config) and
+      `frontend/src/screens/` (Sections, MagicPlus, TodoEditor, todoRows), with the
+      temporary `devAuth.js` at `src/`. `App.js`/`index.js` stay at root.
 - [ ] `GET /todos` reads the query param as `user-id` (hyphen) while POST bodies use
       `user_id` (underscore). Pick one — underscore is easier to destructure.
 - [ ] `migrate:local` and `psql:local` in package.json assume `psql` is installed on

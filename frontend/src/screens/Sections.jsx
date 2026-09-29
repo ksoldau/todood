@@ -12,7 +12,7 @@ import {
 import DraggableFlatList, {
   ScaleDecorator,
 } from 'react-native-draggable-flatlist';
-import { apiFetch } from '../api.js';
+import { apiFetch } from '../lib/api.js';
 import { MagicPlus } from './MagicPlus.jsx';
 import { TodoEditor } from './TodoEditor.jsx';
 import { BUCKETS, placeAt, placeInsertAt, rowKey, toRows } from './todoRows.js';

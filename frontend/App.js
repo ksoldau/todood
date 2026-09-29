@@ -3,10 +3,10 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StyleSheet, Text } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { useEffect, useState } from 'react';
-import { setOnDeadSession } from './api.js';
-import { getToken } from './auth.js';
-import { devLogin } from './playground/devAuth.js';
-import { Sections } from './playground/Sections.jsx';
+import { setOnDeadSession } from './src/lib/api.js';
+import { getToken } from './src/lib/auth.js';
+import { devLogin } from './src/devAuth.js';
+import { Sections } from './src/screens/Sections.jsx';
 
 export default function App() {
   const [state, setState] = useState('loading'); // in | out | loading
