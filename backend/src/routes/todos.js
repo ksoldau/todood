@@ -6,6 +6,7 @@ import { pool } from '../db.js';
 const router = express.Router();
 
 const BUCKETS = ['today', 'soon', 'later'];
+const PATCHABLE = ['title', 'notes', 'completed_at', 'bucket', 'position'];
 
 // Get all of a user's todo items, ordered within each bucket.
 router.get('/', async (req, res) => {
@@ -58,22 +59,46 @@ router.patch('/:id', async (req, res) => {
   const { title, notes, completed_at, bucket, position } = req.body;
   const { userId } = req.auth;
 
+  // A missing key (undefined) means "leave it alone"; null means "clear it".
+  const fields = PATCHABLE.filter((field) => req.body[field] !== undefined);
+
+  // Validations
+  if (fields.length === 0) {
+    return res.status(400).json({ error: 'No valid fields to update.' });
+  }
+  if (title !== undefined && (typeof title !== 'string' || !title.trim())) {
+    return res.status(400).json({ error: 'Title must be a non-empty string.' });
+  }
   if (bucket !== undefined && !BUCKETS.includes(bucket)) {
     return res.status(400).json({ error: 'Invalid bucket.' });
   }
+  if (position !== undefined && !Number.isFinite(position)) {
+    return res.status(400).json({ error: 'Position must be a number.' });
+  }
+  if (
+    completed_at !== undefined &&
+    completed_at !== null &&
+    (typeof completed_at !== 'string' || Number.isNaN(Date.parse(completed_at)))
+  ) {
+    return res
+      .status(400)
+      .json({ error: 'completed_at must be a date or null' });
+  }
+
+  const changes = fields.map((field, i) => {
+    return { assignment: `${field} = $${i + 1}`, value: req.body[field] };
+  });
+
+  const assignments = changes.map((change) => change.assignment);
+  const values = changes.map((change) => change.value);
 
   const result = await pool.query(
     `UPDATE todos
-    SET title = COALESCE($1, title),
-        notes = COALESCE($2, notes),
-        completed_at = COALESCE($3, completed_at),
-        bucket = COALESCE($4, bucket),
-        position = COALESCE($5, position),
-        updated_at = NOW()
-    WHERE id = $6
-    AND user_id = $7
+    SET ${assignments.join(', ')}, updated_at = NOW()
+    WHERE id = $${values.length + 1}
+    AND user_id = $${values.length + 2}
     RETURNING *`,
-    [title, notes, completed_at, bucket, position, id, userId]
+    [...values, id, userId]
   );
 
   if (result.rows.length === 0) {
