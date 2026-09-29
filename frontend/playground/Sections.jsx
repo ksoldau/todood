@@ -1,6 +1,9 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -10,63 +13,52 @@ import DraggableFlatList, {
   ScaleDecorator,
 } from 'react-native-draggable-flatlist';
 import { apiFetch } from '../api.js';
+import { MagicPlus } from './MagicPlus.jsx';
+import { TodoEditor } from './TodoEditor.jsx';
+import { BUCKETS, placeAt, placeInsertAt, rowKey, toRows } from './todoRows.js';
 
-// Fixed buckets, in display order. Labels are what the user sees.
-const BUCKETS = [
-  { key: 'today', label: 'Today' },
-  { key: 'soon', label: 'Soon' },
-  { key: 'later', label: 'Later' },
-];
-
-// One flat list holds both headers and items, because a DraggableFlatList has
-// no sections. Headers are fixed markers; items drag freely, and dragging one
-// across a header is what moves it into that header's bucket.
-function toRows(todos) {
-  return BUCKETS.flatMap(({ key, label }) => [
-    { type: 'header', key: `header-${key}`, bucket: key, label },
-    ...todos
-      .filter((todo) => todo.bucket === key)
-      // Sort here rather than trusting the array's order: a local move
-      // rewrites one todo's position in place without reordering the array,
-      // so only sorting makes the screen agree with the server's ORDER BY.
-      .sort((a, b) => a.position - b.position)
-      .map((todo) => ({ type: 'item', key: `todo-${todo.id}`, todo })),
-  ]);
+let lastClientKey = 0;
+function newClientKey() {
+  lastClientKey += 1;
+  return `local-${lastClientKey}`;
 }
 
-// The bucket a dropped row lands in is the nearest header above it.
-// Returns -1 when the row was dropped above the very first header.
-function headerIndexAbove(rows, index) {
-  for (let i = index; i >= 0; i--) {
-    if (rows[i].type === 'header') return i;
+// Given the rows measured when a drag of the add button began, the gap the
+// finger is over: insert before the first row whose middle is below the
+// finger, or after the last row. `y` is where to draw the insertion line.
+function gapAt(snapshot, fingerY) {
+  const items = [...snapshot.items].sort((a, b) => a.index - b.index);
+  if (items.length === 0) return null;
+  for (const item of items) {
+    if (fingerY < item.y + item.height / 2) {
+      return { index: item.index, y: item.y };
+    }
   }
-  return -1;
-}
-
-// The items directly above and below `index` that share its bucket. A header
-// in either direction means the bucket ends there, so there is no neighbour.
-function neighbours(rows, index) {
-  const above = rows[index - 1];
-  const below = rows[index + 1];
-  return {
-    prev: above && above.type === 'item' ? above.todo : null,
-    next: below && below.type === 'item' ? below.todo : null,
-  };
-}
-
-// `position` is a float precisely so a move only has to rewrite the row that
-// moved: land it halfway between its new neighbours and every other row in
-// the bucket keeps the position it already had.
-function positionBetween(prev, next) {
-  if (!prev && !next) return 0;
-  if (!prev) return next.position - 1;
-  if (!next) return prev.position + 1;
-  return (prev.position + next.position) / 2;
+  const last = items[items.length - 1];
+  return { index: last.index + 1, y: last.y + last.height };
 }
 
 export function Sections() {
   const [todos, setTodos] = useState(null); // null until first load
   const [error, setError] = useState(null);
+  // A new todo being typed that hasn't been saved. It sits in the list like
+  // any other row, at the spot it was dropped.
+  const [draft, setDraft] = useState(null);
+  // Row key of the todo currently open for editing, if any.
+  const [editingKey, setEditingKey] = useState(null);
+  // Where the insertion line is drawn while the add button is being dragged.
+  const [insertLine, setInsertLine] = useState(null);
+
+  // The open card's text. The card owns it; this is how the list reads it
+  // when the card is closed from outside. See TodoEditor.
+  const editorValues = useRef({ title: '', notes: '' });
+  const listRef = useRef(null);
+  const listArea = useRef(null);
+  // Every rendered row's View, so an add-button drag can find the rows
+  // under the finger.
+  const rowViews = useRef(new Map());
+  // Row positions measured when an add-button drag begins.
+  const dragSnapshot = useRef(null);
 
   useEffect(() => {
     let active = true;
@@ -83,75 +75,251 @@ export function Sections() {
     };
   }, []);
 
-  const handleDragEnd = useCallback(
-    async ({ data, to }) => {
-      const moved = data[to];
-      if (!moved || moved.type !== 'item') return;
+  const rows = todos ? toRows(todos, draft) : [];
 
-      const headerIndex = headerIndexAbove(data, to);
-      let bucket;
-      let prev;
-      let next;
+  // The keyboard listener is added once, so it reads the latest rows and
+  // open card through refs rather than the values from its first render.
+  const latest = useRef({ rows, editingKey });
+  useEffect(() => {
+    latest.current = { rows, editingKey };
+  });
 
-      if (headerIndex === -1) {
-        // Dropped above the first header, which reads as "put it at the very
-        // top": keep it in the first bucket rather than rejecting the drag.
-        bucket = BUCKETS[0].key;
-        prev = null;
-        const firstHeader = data.findIndex((row) => row.type === 'header');
-        const after = data[firstHeader + 1];
-        next = after && after.type === 'item' ? after.todo : null;
-      } else {
-        bucket = data[headerIndex].bucket;
-        ({ prev, next } = neighbours(data, to));
+  // When the keyboard opens, scroll the open card clear of it. The
+  // KeyboardAvoidingView shrinks the list; this makes sure the card is in
+  // the part that's left.
+  useEffect(() => {
+    const sub = Keyboard.addListener('keyboardDidShow', () => {
+      const { rows: current, editingKey: key } = latest.current;
+      const index = current.findIndex((row) => row.key === key);
+      if (index !== -1) {
+        listRef.current?.scrollToIndex({ index, viewPosition: 0.3 });
       }
+    });
+    return () => sub.remove();
+  }, []);
 
-      const position = positionBetween(prev, next);
-      if (moved.todo.bucket === bucket && moved.todo.position === position) {
-        return; // dropped back where it started
-      }
+  function openEditor(todo) {
+    editorValues.current = { title: todo.title, notes: todo.notes ?? '' };
+    setEditingKey(rowKey(todo));
+  }
 
-      // Move it locally first so the list settles under the finger, then let
-      // the server confirm. The rows are derived from `todos`, so a wrong
-      // position here is visible immediately as the row landing in the wrong
-      // place rather than silently drifting out of sync.
-      const before = todos;
-      setTodos((current) =>
-        current.map((todo) =>
-          todo.id === moved.todo.id ? { ...todo, bucket, position } : todo
-        )
-      );
+  function startDraft({ bucket, position }) {
+    const clientKey = newClientKey();
+    editorValues.current = { title: '', notes: '' };
+    setDraft({ clientKey, id: null, title: '', notes: null, bucket, position });
+    setEditingKey(clientKey);
+  }
 
-      try {
-        const saved = await apiFetch(`/todos/${moved.todo.id}`, {
-          method: 'PATCH',
-          body: { bucket, position },
+  // Closing the card is what saves it. A new todo with no title is simply
+  // dropped, like an empty to-do in Things.
+  function closeEditor() {
+    if (!editingKey) return;
+    const { title, notes } = editorValues.current;
+    setEditingKey(null);
+
+    if (draft && editingKey === draft.clientKey) {
+      setDraft(null);
+      if (title.trim()) {
+        createTodo({
+          ...draft,
+          title: title.trim(),
+          notes: notes.trim() || null,
         });
-        setTodos((current) =>
-          current.map((todo) => (todo.id === saved.id ? saved : todo))
-        );
-      } catch (err) {
-        setTodos(before); // put it back where the server still thinks it is
-        setError(err.message);
       }
-    },
-    [todos]
-  );
+      return;
+    }
+
+    const todo = todos.find((t) => rowKey(t) === editingKey);
+    if (todo) updateTodo(todo, title, notes);
+  }
+
+  async function createTodo(pending) {
+    // Show it straight away. It keeps its clientKey (and so its row) until
+    // the server answers, and can't be edited or dragged until it has an id.
+    setTodos((current) => [...current, pending]);
+    try {
+      const saved = await apiFetch('/todos', {
+        method: 'POST',
+        body: {
+          title: pending.title,
+          notes: pending.notes ?? undefined,
+          bucket: pending.bucket,
+          position: pending.position,
+        },
+      });
+      // Swap in the server's copy: the real id, and the position it stored.
+      setTodos((current) =>
+        current.map((t) => (t.clientKey === pending.clientKey ? saved : t))
+      );
+      setError(null);
+    } catch (err) {
+      setTodos((current) =>
+        current.filter((t) => t.clientKey !== pending.clientKey)
+      );
+      setError(err.message);
+      // Reopen it so the typing isn't lost — unless another card has been
+      // opened since, which shouldn't be yanked away.
+      if (latest.current.editingKey === null) {
+        editorValues.current = {
+          title: pending.title,
+          notes: pending.notes ?? '',
+        };
+        setDraft(pending);
+        setEditingKey(pending.clientKey);
+      }
+    }
+  }
+
+  async function updateTodo(todo, title, notes) {
+    // An emptied title keeps the old one: a todo can't be untitled. Emptied
+    // notes are sent as null, meaning "clear them".
+    const nextTitle = title.trim() || todo.title;
+    const nextNotes = notes.trim() || null;
+    if (nextTitle === todo.title && nextNotes === (todo.notes ?? null)) {
+      return; // opened and closed without changes
+    }
+
+    const edited = { ...todo, title: nextTitle, notes: nextNotes };
+    setTodos((current) => current.map((t) => (t.id === todo.id ? edited : t)));
+    try {
+      const saved = await apiFetch(`/todos/${todo.id}`, {
+        method: 'PATCH',
+        body: { title: nextTitle, notes: nextNotes },
+      });
+      setTodos((current) =>
+        current.map((t) => (t.id === saved.id ? saved : t))
+      );
+    } catch (err) {
+      setTodos((current) => current.map((t) => (t.id === todo.id ? todo : t)));
+      setError(err.message);
+    }
+  }
+
+  async function handleDragEnd({ data, to }) {
+    const moved = data[to];
+    if (!moved || moved.type !== 'item') return;
+
+    const { bucket, position } = placeAt(data, to);
+    if (moved.todo.bucket === bucket && moved.todo.position === position) {
+      return; // dropped back where it started
+    }
+
+    // Move it locally first so the list settles under the finger, then let
+    // the server confirm. The rows are derived from `todos`, so a wrong
+    // position here is visible immediately as the row landing in the wrong
+    // place rather than silently drifting out of sync.
+    const before = todos;
+    setTodos((current) =>
+      current.map((todo) =>
+        todo.id === moved.todo.id ? { ...todo, bucket, position } : todo
+      )
+    );
+
+    try {
+      const saved = await apiFetch(`/todos/${moved.todo.id}`, {
+        method: 'PATCH',
+        body: { bucket, position },
+      });
+      setTodos((current) =>
+        current.map((todo) => (todo.id === saved.id ? saved : todo))
+      );
+    } catch (err) {
+      setTodos(before); // put it back where the server still thinks it is
+      setError(err.message);
+    }
+  }
+
+  // Measure every row once, at the start of the drag. The list can't scroll
+  // while the button is held, so the positions hold for the whole drag.
+  function handlePlusDragStart() {
+    const snapshot = { rows, items: [], top: 0 };
+    dragSnapshot.current = snapshot;
+    listArea.current?.measureInWindow((_x, y) => {
+      snapshot.top = y;
+    });
+    rows.forEach((row, index) => {
+      rowViews.current.get(row.key)?.measureInWindow((_x, y, _w, height) => {
+        snapshot.items.push({ index, y, height });
+      });
+    });
+  }
+
+  function handlePlusDragMove(fingerY) {
+    const snapshot = dragSnapshot.current;
+    const gap = snapshot && gapAt(snapshot, fingerY);
+    if (!gap) return;
+    // Only re-render when the finger crosses into a different gap.
+    setInsertLine((current) =>
+      current && current.index === gap.index
+        ? current
+        : { index: gap.index, y: gap.y - snapshot.top }
+    );
+  }
+
+  function handlePlusDrop(fingerY) {
+    const snapshot = dragSnapshot.current;
+    dragSnapshot.current = null;
+    setInsertLine(null);
+    if (fingerY === null || !snapshot) return;
+    const gap = gapAt(snapshot, fingerY);
+    if (gap) startDraft(placeInsertAt(snapshot.rows, gap.index));
+  }
+
+  // A plain tap adds to the end of the first bucket: just before the second
+  // header.
+  function handlePlusTap() {
+    const secondHeader = rows.findIndex(
+      (row) => row.type === 'header' && row.bucket !== BUCKETS[0].key
+    );
+    startDraft(placeInsertAt(rows, secondHeader));
+  }
 
   const renderItem = ({ item, drag, isActive }) => {
+    // Remember each row's View so a drag of the add button can measure it.
+    // collapsable={false} stops Android optimising the View away.
+    const register = (view) => {
+      if (view) rowViews.current.set(item.key, view);
+      else rowViews.current.delete(item.key);
+    };
+
     if (item.type === 'header') {
-      return <Text style={styles.header}>{item.label}</Text>;
+      return (
+        <View ref={register} collapsable={false}>
+          <Pressable onPress={closeEditor} disabled={!editingKey}>
+            <Text style={styles.header}>{item.label}</Text>
+          </Pressable>
+        </View>
+      );
     }
+
+    if (item.key === editingKey) {
+      return (
+        <View ref={register} collapsable={false}>
+          <TodoEditor valuesRef={editorValues} onDone={closeEditor} />
+        </View>
+      );
+    }
+
+    const saving = item.todo.id == null;
     return (
-      <ScaleDecorator>
-        <Pressable
-          style={[styles.item, isActive && styles.itemActive]}
-          onLongPress={drag}
-          disabled={isActive}
-        >
-          <Text style={styles.itemText}>{item.todo.title}</Text>
-        </Pressable>
-      </ScaleDecorator>
+      <View ref={register} collapsable={false}>
+        <ScaleDecorator>
+          <Pressable
+            style={[
+              styles.item,
+              isActive && styles.itemActive,
+              saving && styles.itemSaving,
+            ]}
+            // While a card is open, tapping anywhere else closes it, the same
+            // as in Things, rather than opening a second card.
+            onPress={() => (editingKey ? closeEditor() : openEditor(item.todo))}
+            onLongPress={editingKey ? undefined : drag}
+            disabled={isActive || saving}
+          >
+            <Text style={styles.itemText}>{item.todo.title}</Text>
+          </Pressable>
+        </ScaleDecorator>
+      </View>
     );
   };
 
@@ -165,20 +333,53 @@ export function Sections() {
   }
 
   return (
-    <View style={styles.container}>
+    // Shrinks to make room for the keyboard, so an open card near the bottom
+    // can be scrolled above it. Android resizes the window itself, per Expo's
+    // keyboard guide, so it needs no behavior.
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
       {error ? <Text style={styles.error}>{error}</Text> : null}
-      <DraggableFlatList
-        data={toRows(todos)}
-        keyExtractor={(row) => row.key}
-        renderItem={renderItem}
-        onDragEnd={handleDragEnd}
-        containerStyle={styles.container}
-        contentContainerStyle={styles.listContent}
-      />
-      <Pressable style={styles.addButton} onPress={() => console.log('add')}>
-        <Text style={styles.addButtonText}>+</Text>
-      </Pressable>
-    </View>
+      <View ref={listArea} style={styles.container} collapsable={false}>
+        <DraggableFlatList
+          ref={listRef}
+          data={rows}
+          keyExtractor={(row) => row.key}
+          renderItem={renderItem}
+          // The rows read editingKey, which isn't part of `data`.
+          extraData={editingKey}
+          onDragEnd={handleDragEnd}
+          containerStyle={styles.container}
+          // Without this, the first tap on a row while the keyboard is up
+          // only dismisses the keyboard, and the row never hears it.
+          keyboardShouldPersistTaps="handled"
+          onScrollToIndexFailed={() => {}}
+          contentContainerStyle={styles.listContent}
+          // Fills the rest of the screen below the last row: tapping that
+          // empty space closes an open card, and it keeps the last row clear
+          // of the add button.
+          ListFooterComponent={
+            <Pressable style={styles.footer} onPress={closeEditor} />
+          }
+          ListFooterComponentStyle={styles.footerContainer}
+        />
+        {insertLine ? (
+          <View
+            pointerEvents="none"
+            style={[styles.insertLine, { top: insertLine.y - 1 }]}
+          />
+        ) : null}
+      </View>
+      {editingKey ? null : (
+        <MagicPlus
+          onTap={handlePlusTap}
+          onDragStart={handlePlusDragStart}
+          onDragMove={handlePlusDragMove}
+          onDrop={handlePlusDrop}
+        />
+      )}
+    </KeyboardAvoidingView>
   );
 }
 
@@ -213,27 +414,29 @@ const styles = StyleSheet.create({
   itemActive: {
     backgroundColor: '#e6f0ff',
   },
+  itemSaving: {
+    opacity: 0.5,
+  },
   itemText: {
     fontSize: 16,
   },
   listContent: {
+    flexGrow: 1,
+  },
+  footerContainer: {
+    flexGrow: 1,
+  },
+  footer: {
+    flexGrow: 1,
     // Room to scroll the last todo clear of the floating add button.
-    paddingBottom: 100,
+    minHeight: 100,
   },
-  addButton: {
+  insertLine: {
     position: 'absolute',
-    right: 24,
-    bottom: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
+    left: 12,
+    right: 12,
+    height: 2,
+    borderRadius: 1,
     backgroundColor: '#1a73e8',
-  },
-  addButtonText: {
-    color: '#fff',
-    fontSize: 32,
-    lineHeight: 34,
   },
 });
