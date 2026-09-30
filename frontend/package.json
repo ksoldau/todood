@@ -13,6 +13,7 @@
     "react-native-draggable-flatlist": "^4.0.3",
     "react-native-gesture-handler": "~2.32.0",
     "react-native-safe-area-context": "^5.9.1",
+    "react-native-ui-datepicker": "^3.3.0",
     "react-native-web": "^0.21.2"
   },
   "scripts": {

@@ -13,6 +13,7 @@ import DraggableFlatList, {
   ScaleDecorator,
 } from 'react-native-draggable-flatlist';
 import { apiFetch } from '../lib/api.js';
+import { dueState } from '../lib/dates.js';
 import { MagicPlus } from './MagicPlus.jsx';
 import { TodoEditor } from './TodoEditor.jsx';
 import { BUCKETS, placeAt, placeInsertAt, rowKey, toRows } from './todoRows.js';
@@ -36,6 +37,21 @@ function gapAt(snapshot, fingerY) {
   }
   const last = items[items.length - 1];
   return { index: last.index + 1, y: last.y + last.height };
+}
+
+// The due-date flag on a row: gray when a date is set and still ahead, red on
+// the due day, and red with a leading "!" once overdue. Nothing when undated.
+function DueFlag({ state }) {
+  if (state === 'none') return null;
+  const red = state === 'today' || state === 'overdue';
+  return (
+    <View style={styles.flagWrap}>
+      {state === 'overdue' ? <Text style={styles.bang}>!</Text> : null}
+      <Text style={[styles.flag, red ? styles.flagRed : styles.flagGray]}>
+        ⚑
+      </Text>
+    </View>
+  );
 }
 
 export function Sections({ onLogout }) {
@@ -99,14 +115,26 @@ export function Sections({ onLogout }) {
   }, []);
 
   function openEditor(todo) {
-    editorValues.current = { title: todo.title, notes: todo.notes ?? '' };
+    editorValues.current = {
+      title: todo.title,
+      notes: todo.notes ?? '',
+      due_date: todo.due_date ?? null,
+    };
     setEditingKey(rowKey(todo));
   }
 
   function startDraft({ bucket, position }) {
     const clientKey = newClientKey();
-    editorValues.current = { title: '', notes: '' };
-    setDraft({ clientKey, id: null, title: '', notes: null, bucket, position });
+    editorValues.current = { title: '', notes: '', due_date: null };
+    setDraft({
+      clientKey,
+      id: null,
+      title: '',
+      notes: null,
+      bucket,
+      position,
+      due_date: null,
+    });
     setEditingKey(clientKey);
   }
 
@@ -114,7 +142,7 @@ export function Sections({ onLogout }) {
   // dropped, like an empty to-do in Things.
   function closeEditor() {
     if (!editingKey) return;
-    const { title, notes } = editorValues.current;
+    const { title, notes, due_date } = editorValues.current;
     setEditingKey(null);
 
     if (draft && editingKey === draft.clientKey) {
@@ -124,13 +152,14 @@ export function Sections({ onLogout }) {
           ...draft,
           title: title.trim(),
           notes: notes.trim() || null,
+          due_date: due_date || null,
         });
       }
       return;
     }
 
     const todo = todos.find((t) => rowKey(t) === editingKey);
-    if (todo) updateTodo(todo, title, notes);
+    if (todo) updateTodo(todo, title, notes, due_date);
   }
 
   async function createTodo(pending) {
@@ -145,6 +174,7 @@ export function Sections({ onLogout }) {
           notes: pending.notes ?? undefined,
           bucket: pending.bucket,
           position: pending.position,
+          due_date: pending.due_date ?? undefined,
         },
       });
       // Swap in the server's copy: the real id, and the position it stored.
@@ -163,6 +193,7 @@ export function Sections({ onLogout }) {
         editorValues.current = {
           title: pending.title,
           notes: pending.notes ?? '',
+          due_date: pending.due_date ?? null,
         };
         setDraft(pending);
         setEditingKey(pending.clientKey);
@@ -170,21 +201,31 @@ export function Sections({ onLogout }) {
     }
   }
 
-  async function updateTodo(todo, title, notes) {
+  async function updateTodo(todo, title, notes, dueDate) {
     // An emptied title keeps the old one: a todo can't be untitled. Emptied
-    // notes are sent as null, meaning "clear them".
+    // notes are sent as null, meaning "clear them". Same for the due date.
     const nextTitle = title.trim() || todo.title;
     const nextNotes = notes.trim() || null;
-    if (nextTitle === todo.title && nextNotes === (todo.notes ?? null)) {
+    const nextDue = dueDate || null;
+    if (
+      nextTitle === todo.title &&
+      nextNotes === (todo.notes ?? null) &&
+      nextDue === (todo.due_date ?? null)
+    ) {
       return; // opened and closed without changes
     }
 
-    const edited = { ...todo, title: nextTitle, notes: nextNotes };
+    const edited = {
+      ...todo,
+      title: nextTitle,
+      notes: nextNotes,
+      due_date: nextDue,
+    };
     setTodos((current) => current.map((t) => (t.id === todo.id ? edited : t)));
     try {
       const saved = await apiFetch(`/todos/${todo.id}`, {
         method: 'PATCH',
-        body: { title: nextTitle, notes: nextNotes },
+        body: { title: nextTitle, notes: nextNotes, due_date: nextDue },
       });
       setTodos((current) =>
         current.map((t) => (t.id === saved.id ? saved : t))
@@ -301,6 +342,7 @@ export function Sections({ onLogout }) {
     }
 
     const saving = item.todo.id == null;
+    const due = dueState(item.todo);
     return (
       <View ref={register} collapsable={false}>
         <ScaleDecorator>
@@ -309,6 +351,7 @@ export function Sections({ onLogout }) {
               styles.item,
               isActive && styles.itemActive,
               saving && styles.itemSaving,
+              due === 'overdue' && styles.itemOverdue,
             ]}
             // While a card is open, tapping anywhere else closes it, the same
             // as in Things, rather than opening a second card.
@@ -317,6 +360,7 @@ export function Sections({ onLogout }) {
             disabled={isActive || saving}
           >
             <Text style={styles.itemText}>{item.todo.title}</Text>
+            <DueFlag state={due} />
           </Pressable>
         </ScaleDecorator>
       </View>
@@ -428,6 +472,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#f2f2f2',
   },
   item: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
     paddingVertical: 14,
     paddingHorizontal: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -437,10 +485,33 @@ const styles = StyleSheet.create({
   itemActive: {
     backgroundColor: '#e6f0ff',
   },
+  itemOverdue: {
+    backgroundColor: '#fde7ea',
+  },
+  flagWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  flag: {
+    fontSize: 16,
+  },
+  flagGray: {
+    color: '#999',
+  },
+  flagRed: {
+    color: '#d64545',
+  },
+  bang: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#d64545',
+  },
   itemSaving: {
     opacity: 0.5,
   },
   itemText: {
+    flex: 1,
     fontSize: 16,
   },
   listContent: {
