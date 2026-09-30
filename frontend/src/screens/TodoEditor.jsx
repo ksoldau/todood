@@ -82,29 +82,32 @@ export function TodoEditor({ valuesRef, onDone }) {
             {dueLabel(due)}
           </Text>
         </Pressable>
-        {due ? (
-          <Pressable
-            onPress={() => {
-              changeDue(null);
-              setShowCalendar(false);
-            }}
-            hitSlop={8}
-          >
-            <Text style={styles.clear}>Clear</Text>
-          </Pressable>
-        ) : null}
       </View>
 
       {showCalendar ? (
-        <DateTimePicker
-          mode="single"
-          date={parseDue(due) ?? new Date()}
-          onChange={({ date }) => {
-            changeDue(toDateStr(date));
-            setShowCalendar(false);
-          }}
-          styles={defaultStyles}
-        />
+        <View>
+          <DateTimePicker
+            mode="single"
+            date={parseDue(due) ?? new Date()}
+            onChange={({ date }) => {
+              changeDue(toDateStr(date));
+              setShowCalendar(false);
+            }}
+            styles={defaultStyles}
+          />
+          {due ? (
+            <Pressable
+              style={styles.clearButton}
+              onPress={() => {
+                changeDue(null);
+                setShowCalendar(false);
+              }}
+              hitSlop={8}
+            >
+              <Text style={styles.clear}>Clear due date</Text>
+            </Pressable>
+          ) : null}
+        </View>
       ) : null}
     </View>
   );
@@ -162,8 +165,12 @@ const styles = StyleSheet.create({
   duePlaceholder: {
     color: '#888',
   },
+  clearButton: {
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
   clear: {
     fontSize: 14,
-    color: '#888',
+    color: '#d64545',
   },
 });
