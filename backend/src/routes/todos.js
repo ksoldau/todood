@@ -41,8 +41,10 @@ router.post('/', async (req, res) => {
     return res.status(400).json({ error: 'Position must be a number.' });
   }
 
-  const result = await pool.query(
-    `INSERT INTO todos (user_id, title, notes, bucket, position)
+  let result;
+  try {
+    result = await pool.query(
+      `INSERT INTO todos (user_id, title, notes, bucket, position)
      VALUES (
        $1, $2, $3, $4,
        COALESCE(
@@ -52,8 +54,18 @@ router.post('/', async (req, res) => {
        )
      )
      RETURNING *`,
-    [userId, title, notes, bucket, position]
-  );
+      [userId, title, notes, bucket, position]
+    );
+  } catch (err) {
+    // 23503 = foreign key violation. The only FK here is user_id, so this
+    // means the token's user no longer exists (e.g. the DB was reset under a
+    // live session). Report it as a dead session (401) so the client logs out,
+    // rather than a generic 500. Anything else is a real server error.
+    if (err.code === '23503') {
+      return res.status(401).json({ error: 'Session no longer valid.' });
+    }
+    throw err;
+  }
 
   // 201 = created
   res.status(201).json(result.rows[0]);
