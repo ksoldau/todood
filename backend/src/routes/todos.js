@@ -1,12 +1,20 @@
 import express from 'express';
 
 import { pool } from '../db.js';
+import { isRealDate } from '../utils/validation.js';
 
 // Paths here are relative to where this router is mounted in index.js
 const router = express.Router();
 
 const BUCKETS = ['today', 'soon', 'later'];
-const PATCHABLE = ['title', 'notes', 'completed_at', 'bucket', 'position'];
+const PATCHABLE = [
+  'title',
+  'notes',
+  'completed_at',
+  'bucket',
+  'position',
+  'due_date',
+];
 
 // Get all of a user's todo items, ordered within each bucket.
 router.get('/', async (req, res) => {
@@ -24,7 +32,7 @@ router.get('/', async (req, res) => {
 
 // Create a todo. Caller must state the bucket; the item goes to the end of it.
 router.post('/', async (req, res) => {
-  const { title, notes, bucket, position } = req.body;
+  const { title, notes, bucket, position, due_date } = req.body;
   const { userId } = req.auth;
 
   if (!title) {
@@ -41,20 +49,27 @@ router.post('/', async (req, res) => {
     return res.status(400).json({ error: 'Position must be a number.' });
   }
 
+  if (due_date != null && !isRealDate(due_date)) {
+    return res
+      .status(400)
+      .json({ error: 'due_date must be a valid date in YYYY-MM-DD format.' });
+  }
+
   let result;
   try {
     result = await pool.query(
-      `INSERT INTO todos (user_id, title, notes, bucket, position)
+      `INSERT INTO todos (user_id, title, notes, bucket, position, due_date)
      VALUES (
        $1, $2, $3, $4,
        COALESCE(
           $5,
          (SELECT MAX(position) + 1 FROM todos WHERE user_id = $1 AND bucket = $4),
          0
-       )
+       ),
+       $6
      )
      RETURNING *`,
-      [userId, title, notes, bucket, position]
+      [userId, title, notes, bucket, position, due_date ?? null]
     );
   } catch (err) {
     // 23503 = foreign key violation. The only FK here is user_id, so this
@@ -73,7 +88,7 @@ router.post('/', async (req, res) => {
 
 router.patch('/:id', async (req, res) => {
   const { id } = req.params;
-  const { title, notes, completed_at, bucket, position } = req.body;
+  const { title, notes, completed_at, bucket, position, due_date } = req.body;
   const { userId } = req.auth;
 
   // A missing key (undefined) means "leave it alone"; null means "clear it".
@@ -100,6 +115,11 @@ router.patch('/:id', async (req, res) => {
     return res
       .status(400)
       .json({ error: 'completed_at must be a date or null' });
+  }
+  if (due_date !== undefined && due_date !== null && !isRealDate(due_date)) {
+    return res
+      .status(400)
+      .json({ error: 'due_date must be a valid date in YYYY-MM-DD format.' });
   }
 
   const changes = fields.map((field, i) => {

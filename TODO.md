@@ -50,7 +50,12 @@ DECISIONS.md; this is just the "don't forget" pile.
       (42P01 / 42703), a future NOT NULL column (23502) — where a 500 is the honest
       answer. Revisit if any of them actually start happening.
 - [ ] `todos.js` has no error handling. A bad `user_id` returns an opaque 500 instead
-      of a 400 saying the user does not exist (Postgres code 23503).
+      of a 400 saying the user does not exist (Postgres code 23503). (Partly done: POST
+      now maps 23503 to 401 for a missing-user token; other cases still 500.)
+- [x] `due_date` validated as a real calendar date, not just format — `isRealDate`
+      (in `utils/validation.js`) regex-checks `YYYY-MM-DD` then round-trips through a
+      `Date` so `2026-02-30`/`2026-13-45` are rejected with a 400 rather than reaching
+      Postgres as a 500. Used by both POST and PATCH.
 
 ## Consistency / cleanup
 

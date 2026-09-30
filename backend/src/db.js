@@ -1,6 +1,10 @@
-import { Pool } from 'pg';
+import { Pool, types } from 'pg';
 
 import { DATABASE_URL, NODE_ENV } from './config.js';
+
+// 1082 is Postgres's OID for DATE. Keep the raw
+// 'YYYY-MM-DD' string — a due date is a day, not a timestamp.
+types.setTypeParser(1082, (val) => val);
 
 // A pool opens connections lazily, one per query, so there's nothing to
 // connect at startup — and nothing left dangling when a connection drops.
