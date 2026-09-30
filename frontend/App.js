@@ -4,8 +4,8 @@ import { StyleSheet, Text } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { useEffect, useState } from 'react';
 import { setOnDeadSession } from './src/lib/api.js';
-import { getToken } from './src/lib/auth.js';
-import { devLogin } from './src/devAuth.js';
+import { getToken, removeToken } from './src/lib/auth.js';
+import { LoginScreen } from './src/screens/LoginScreen.jsx';
 import { Sections } from './src/screens/Sections.jsx';
 
 export default function App() {
@@ -13,20 +13,14 @@ export default function App() {
 
   useEffect(() => {
     async function readToken() {
-      let token = await getToken();
-      // TEMP: no login screen yet, so bootstrap a dev session when signed out.
-      if (!token) {
-        try {
-          token = await devLogin();
-        } catch {
-          token = null;
-        }
-      }
+      const token = await getToken();
       setState(token ? 'in' : 'out');
     }
 
     readToken();
 
+    // A dead session (a 401 on a request that carried a token) sends us back
+    // to the login screen.
     setOnDeadSession(() => setState('out'));
   }, []);
 
@@ -35,8 +29,17 @@ export default function App() {
       <SafeAreaProvider>
         <SafeAreaView style={styles.container}>
           {state === 'loading' ? <Text>Loading...</Text> : null}
-          {state === 'in' ? <Sections /> : null}
-          {state === 'out' ? <Text>login screen</Text> : null}
+          {state === 'in' ? (
+            <Sections
+              onLogout={async () => {
+                await removeToken();
+                setState('out');
+              }}
+            />
+          ) : null}
+          {state === 'out' ? (
+            <LoginScreen onSignedIn={() => setState('in')} />
+          ) : null}
         </SafeAreaView>
       </SafeAreaProvider>
     </GestureHandlerRootView>

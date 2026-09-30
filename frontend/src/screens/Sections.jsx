@@ -38,7 +38,7 @@ function gapAt(snapshot, fingerY) {
   return { index: last.index + 1, y: last.y + last.height };
 }
 
-export function Sections() {
+export function Sections({ onLogout }) {
   const [todos, setTodos] = useState(null); // null until first load
   const [error, setError] = useState(null);
   // A new todo being typed that hasn't been saved. It sits in the list like
@@ -340,6 +340,12 @@ export function Sections() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      <View style={styles.topBar}>
+        <Text style={styles.brand}>todood</Text>
+        <Pressable onPress={onLogout} hitSlop={8}>
+          <Text style={styles.logout}>Log out</Text>
+        </Pressable>
+      </View>
       {error ? <Text style={styles.error}>{error}</Text> : null}
       <View ref={listArea} style={styles.container} collapsable={false}>
         <DraggableFlatList
@@ -386,6 +392,23 @@ export function Sections() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#ddd',
+  },
+  brand: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  logout: {
+    fontSize: 15,
+    color: '#1a73e8',
   },
   message: {
     margin: 24,
